@@ -34,30 +34,81 @@
   <div id="app">
 
     <p>
-      站點名稱搜尋: <input type="text">
+      站點名稱搜尋: <input type="text" v-model="searchText" @keydown.enter="search">
+      <button @click="search">搜尋</button>
+      <button @click="reset">重設列表</button>
     </p>
-
+    <p class="alert alert-warning" v-if="isEmpty">查無 "{{ searchText }}" 的結果，請重新輸入。</p>
     <table class="table table-striped">
       <thead>
         <tr>
           <th>#</th>
           <th>場站名稱</th>
           <th>場站區域</th>
-          <th>目前可用車輛
-            <i class="fa fa-sort-asc" aria-hidden="true"></i>
-            <i class="fa fa-sort-desc" aria-hidden="true"></i>
+          <th @click="sortData('sbi')" style="cursor: pointer;">目前可用車輛
+            <span v-if="touched === 'sbi'">
+              <i v-if="!isSort_sbi" class="fa fa-sort-asc" aria-hidden="true"></i>
+              <i v-if="isSort_sbi" class="fa fa-sort-desc" aria-hidden="true"></i>
+            </span>
           </th>
-          <th>總停車格
-            <i class="fa fa-sort-asc" aria-hidden="true"></i>
-            <i class="fa fa-sort-desc" aria-hidden="true"></i>
+          <th @click="sortData('tot')" style="cursor: pointer;">總停車格
+            <span v-if="touched === 'tot'">
+              <i v-if="!isSort_tot" class="fa fa-sort-asc" aria-hidden="true"></i>
+              <i v-if="isSort_tot" class="fa fa-sort-desc" aria-hidden="true"></i>
+            </span>
           </th>
           <th>資料更新時間</th>
         </tr>
       </thead>
       <tbody>
-        <!-- 請補完 -->
+        <tr v-for="(stop, idx) in filterUBikeStops">
+          <td>{{ idx+1+currentPage*20 }}</td>
+          <td>{{ stop.sna }}</td>
+          <td>{{ stop.sarea }}</td>
+          <td>{{ stop.sbi }}</td>
+          <td>{{ stop.tot }}</td>
+          <td>{{ stop.mday }}</td>
+        </tr>
       </tbody>
     </table>
+
+    <!-- TODO: 頁碼顯示的功能待完成,先全部都顯示出來 -->
+    <nav aria-label="Page navigation example">
+      <ul class="pagination">
+        <!-- 第一頁 -->
+        <li class="page-item" @click="currentPage=0">
+          <a class="page-link" href="#" aria-label="Previous">
+            <span aria-hidden="true">&laquo;</span>
+          </a>
+        </li>
+        <!-- 上一頁 -->
+        <li class="page-item" @click="setPage(-1)">
+          <a class="page-link" href="#" aria-label="Previous">
+            <span aria-hidden="true">&lt;</span>
+          </a>
+        </li>
+        <!-- 選頁數 -->
+        <li class="page-item"
+            :class="{'active': currentPage === idx}"
+            v-for="(n, idx) in totalPages"
+            @click="currentPage=(n-1)">
+          <a class="page-link" href="#">{{ n }}</a>
+        </li>
+        <!-- 下一頁 -->
+        <li class="page-item" @click="setPage(1)">
+          <a class="page-link" href="#" aria-label="Next">
+            <span aria-hidden="true">&gt;</span>
+          </a>
+        </li>
+         <!-- 最後一頁 -->
+         <li class="page-item" @click="currentPage = totalPages-1">
+          <a class="page-link" href="#" aria-label="Next">
+            <span aria-hidden="true">&raquo;</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+
   </div>
 
 
@@ -75,7 +126,74 @@
     const app = Vue.createApp({
       data () {
         return {
-          uBikeStops: []
+          uBikeStops: [],
+          searchText: '',
+          isEmpty: false,
+          isSort_sbi: false,
+          isSort_tot: false,
+          touched: '',
+          currentPage: 0
+        }
+      },
+      methods: {
+        search() {
+          // 避免使用者輸入空白
+          const str = this.searchText.trim();
+          // 空字串則不須filter data
+          if(str.length === 0) { return false; }
+
+          let result = [];
+          result = this.uBikeStops.filter((stop) => {
+            return stop.sna.includes(str);
+          });
+          this.isEmpty = result.length > 0 ? false : true;
+          this.uBikeStops = result.length > 0 ? result : this.uBikeStops;
+        },
+        reset() {
+          this.searchText = '';
+          this.uBikeStops = this.rawData;
+          this.isEmpty = false;
+          this.isSort_sbi = false;
+          this.isSort_tot = false;
+          this.touched = '';
+          this.currentPage = 0;
+        },
+        sortData(params) {
+          // 紀錄被點到的標題，控制標題的icon是否出現
+          this.touched = params;
+          if(this[`isSort_${params}`]) {
+            // 升冪排列
+            this.uBikeStops.sort((stopA, stopB) => {
+              return +stopA[params] - +stopB[params];
+            })
+            // 控制icon上或下
+            this[`isSort_${params}`] = false;
+          }else {
+            // 降冪排列
+            this.uBikeStops.sort((stopA, stopB) => {
+              return +stopB[params] - +stopA[params];
+            })
+            // 控制icon上或下
+            this[`isSort_${params}`] = true;
+          }
+        },
+        setPage(page) {
+          if(this.currentPage + page < 0 || this.currentPage + page >= this.totalPages) {
+            return false;
+          }
+          this.currentPage += page;
+        }
+      },
+      computed: {
+        totalPages() {
+          const pageMax = 20;
+          const total = this.uBikeStops.length;
+          return Math.ceil(total/pageMax);
+        },
+        filterUBikeStops() {
+          const start = this.currentPage * 20;
+          const end = (this.currentPage + 1) * 20;
+          return this.uBikeStops.slice(start, end);
         }
       },
       created () {
