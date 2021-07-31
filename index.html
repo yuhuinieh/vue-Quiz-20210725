@@ -39,6 +39,45 @@
       <button @click="reset">重設列表</button>
     </p>
     <p class="alert alert-warning" v-if="isEmpty">查無 "{{ searchText }}" 的結果，請重新輸入。</p>
+
+    <!-- 分頁功能 -->
+    <nav aria-label="Page navigation example">
+      <ul class="pagination">
+        <!-- 第一頁 -->
+        <li class="page-item" @click="currentPage = 1">
+          <a class="page-link" href="#" aria-label="Previous">
+            <span aria-hidden="true">&laquo;</span>
+          </a>
+        </li>
+        <!-- 上一頁 -->
+        <li class="page-item" @click="setPage(-1)">
+          <a class="page-link" href="#" aria-label="Previous">
+            <span aria-hidden="true">&lt;</span>
+          </a>
+        </li>
+        <!-- 選頁數 -->
+        <li class="page-item"
+            :class="{'active': currentPage === pageNum(n)}"
+            v-for="(n, idx) in pageLength"
+            @click="currentPage = pageNum(n)">
+          <a class="page-link" href="#">{{ pageNum(n) }}</a>
+        </li>
+        <!-- 下一頁 -->
+        <li class="page-item" @click="setPage(1)">
+          <a class="page-link" href="#" aria-label="Next">
+            <span aria-hidden="true">&gt;</span>
+          </a>
+        </li>
+        <!-- 最後一頁 -->
+        <li class="page-item" @click="currentPage = totalPages">
+          <a class="page-link" href="#" aria-label="Next">
+            <span aria-hidden="true">&raquo;</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+
     <table class="table table-striped">
       <thead>
         <tr>
@@ -62,7 +101,7 @@
       </thead>
       <tbody>
         <tr v-for="(stop, idx) in filterUBikeStops">
-          <td>{{ idx+1+currentPage*20 }}</td>
+          <td>{{ idx + 1 + (currentPage - 1) * 20 }}</td>
           <td>{{ stop.sna }}</td>
           <td>{{ stop.sarea }}</td>
           <td>{{ stop.sbi }}</td>
@@ -71,43 +110,6 @@
         </tr>
       </tbody>
     </table>
-
-    <!-- TODO: 頁碼顯示的功能待完成,先全部都顯示出來 -->
-    <nav aria-label="Page navigation example">
-      <ul class="pagination">
-        <!-- 第一頁 -->
-        <li class="page-item" @click="currentPage=0">
-          <a class="page-link" href="#" aria-label="Previous">
-            <span aria-hidden="true">&laquo;</span>
-          </a>
-        </li>
-        <!-- 上一頁 -->
-        <li class="page-item" @click="setPage(-1)">
-          <a class="page-link" href="#" aria-label="Previous">
-            <span aria-hidden="true">&lt;</span>
-          </a>
-        </li>
-        <!-- 選頁數 -->
-        <li class="page-item"
-            :class="{'active': currentPage === idx}"
-            v-for="(n, idx) in totalPages"
-            @click="currentPage=(n-1)">
-          <a class="page-link" href="#">{{ n }}</a>
-        </li>
-        <!-- 下一頁 -->
-        <li class="page-item" @click="setPage(1)">
-          <a class="page-link" href="#" aria-label="Next">
-            <span aria-hidden="true">&gt;</span>
-          </a>
-        </li>
-         <!-- 最後一頁 -->
-         <li class="page-item" @click="currentPage = totalPages-1">
-          <a class="page-link" href="#" aria-label="Next">
-            <span aria-hidden="true">&raquo;</span>
-          </a>
-        </li>
-      </ul>
-    </nav>
 
   </div>
 
@@ -132,7 +134,8 @@
           isSort_sbi: false,
           isSort_tot: false,
           touched: '',
-          currentPage: 0
+          currentPage: 1,
+          pageLength: 7
         }
       },
       methods: {
@@ -156,7 +159,7 @@
           this.isSort_sbi = false;
           this.isSort_tot = false;
           this.touched = '';
-          this.currentPage = 0;
+          this.currentPage = 1;
         },
         sortData(params) {
           // 紀錄被點到的標題，控制標題的icon是否出現
@@ -178,10 +181,15 @@
           }
         },
         setPage(page) {
-          if(this.currentPage + page < 0 || this.currentPage + page >= this.totalPages) {
+          if(this.currentPage + page <= 0 || this.currentPage + page > this.totalPages) {
             return false;
           }
           this.currentPage += page;
+        },
+        pageNum(n) {
+            return this.currentPage <= this.offsetPageCount ? n :
+            this.currentPage + this.offsetPageCount > this.totalPages ?
+            this.totalPages - this.pageLength + n : (n - 1) + this.currentPage - this.offsetPageCount;
         }
       },
       computed: {
@@ -191,9 +199,12 @@
           return Math.ceil(total/pageMax);
         },
         filterUBikeStops() {
-          const start = this.currentPage * 20;
-          const end = (this.currentPage + 1) * 20;
+          const start = (this.currentPage - 1) * 20;
+          const end = this.currentPage * 20;
           return this.uBikeStops.slice(start, end);
+        },
+        offsetPageCount() {
+          return Math.floor(this.pageLength/2);
         }
       },
       created () {
